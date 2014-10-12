@@ -1,0 +1,470 @@
+; The four IEEE floating-point arithmetic routines.
+; Using the zeep80 emulator, the float operands are passed in HLDE and H'L'D'E'
+; and the operation code in C.
+; the result is returned in HLDE
+;
+
+;	org 0
+
+;	di
+;	ld sp,2048
+
+;start:
+;	ld a,c
+;	ld (fladdsubflag),a		; 0/1/2/3 = addition/subtraction/multiplication/division
+;	cp 2
+;	jr c,fladdsub
+;	jp z,flmult
+;	cp 3
+;	jp z,fldiv
+;	halt
+
+fladdsubflag: defb 0
+
+
+; -------------------------------------------------------------------------------
+; Addition & subtraction
+
+; op  A  B   result (using absolute values of A and B)
+; +   +  +    A+B
+; +   -  -   -(A+B)
+; +   -  +   -(A-B)  $ *
+; +   +  -    A-B    $ *
+; -   +  +    A-B    $
+; -   -  -    -(A-B) $
+; -   -  +    -(A+B)   *
+; -   +  -    A+B      *
+;
+; $ = sign changed when operands are exchanged
+; * = operation (+/-) exchanged
+
+flsub:
+	ld a,1
+	ld (fladdsubflag),a
+	jr fladdsub
+fladd:
+	xor a
+	ld (fladdsubflag),a
+
+fladdsub:
+	ld a,h
+	rl l
+	rla
+	push af			; save exponent, and sign in carry
+	scf
+	rr l				; set implied bit 23
+	ld b,l
+	push de
+
+	exx
+	ld a,h
+	rl l
+	rla
+	ex af,af'		; save exponent, and sign in carry
+	scf
+	ld a,l
+	rra				; set implied bit 23
+	pop hl
+	exx
+	ld c,a			; fraction1 in BH'L', fraction2 in CD'E'
+
+	ex af,af'
+	rl l				; store sign2 in bit 0 of L
+	ld h,a			; store exp2 in H
+	pop af
+	push af			; restack sign of first operand in carry (provisional sign of result)
+	ld d,a			; store exp1 in D
+	rla				; get sign1 into bit 0 of A
+	xor l
+	ld l,a			; store sign difference in bit 0 of L
+
+	ld a,d
+	sub h				; compare exponents
+	jr z,noshift
+	jr nc,noexpswap
+
+; swap operands
+	ex af,af'		; save exponent difference
+	exx
+	ex de,hl			; swap bits 0..15 of fractions
+	exx
+	ld a,b
+	ld b,c
+	ld c,a			; swap bits 16..23 of fractions
+	ld a,d
+	ld d,h
+	ld h,a			; swap exponents
+
+; swap sign if:
+; for addition - signs are different
+; for subtraction - signs are the same
+	ld a,(fladdsubflag)
+	xor l
+	rra
+	jr nc,nexp
+	pop af
+	ccf				; change sign of result
+	push af
+nexp:
+	ex af,af'
+	neg				; negate exponent difference
+
+noexpswap:
+	cp 24
+	jr c,shiftfrac2
+; exponent difference too large; use first operand as result
+	exx
+	push hl
+	exx
+	pop hl
+	jr asrepack		; finish with fraction from BHL
+
+; shift fraction2 right until exponents match
+shiftfrac2:
+	srl c
+	exx
+	rr d
+	rr e
+	exx
+	dec a
+	jr nz,shiftfrac2
+
+noshift:
+	ld a,(fladdsubflag)	; get add/sub flag (0/1)
+	xor l					; change operation if signs are different
+	ld (fladdsubflag),a
+	rra
+	exx
+	jr c,fldosub
+	add hl,de
+	exx
+	ld a,b
+	adc a,c
+	ld b,a				; add two fractions
+	jr checkbit24
+fldosub:
+	or a
+	sbc hl,de
+	exx
+	ld a,b
+	sbc a,c				; subtract two fractions
+	ld b,a
+
+checkbit24:
+	exx
+	push hl
+	exx
+	pop hl				; result fraction to BHL
+	jr nc,checknorm	; neither overflow (addtion) nor negative (subtraction) fraction
+	ld a,(fladdsubflag)
+	rra
+	jr c,fracneg
+; overflow after addition requires shifting fraction right and incrementing exponent
+	srl b
+	rr h
+	rr l					; rounding maybe?
+	inc d
+	jr asrepack
+
+fracneg:
+; negative fraction after subtraction requires negating fraction and change of sign
+	ld a,l
+	neg					; clears carry on negating 0; sets otherwise
+	ccf
+	ld l,a
+	ld a,h
+	cpl
+	adc a,0
+	ld h,a
+	ld a,b
+	cpl
+	adc a,0
+	ld b,a
+	pop af
+	ccf
+	push af
+	jr checknorm2
+
+checknorm:
+; check if fraction is zero first (from subtraction)
+	ld a,b
+	or h
+	or l
+	jr nz,checknorm2
+	ld d,a
+	ld e,a
+	pop af
+	ret					; finish, with everything (HLDE) zero = 0
+
+checknorm2:
+	ld a,(fladdsubflag)
+	rra
+	jr nc,asrepack		; only need to normalise after subtraction
+
+asnormalise:
+	bit 7,b
+	jr nz,asrepack
+	add hl,hl
+	rl b
+	dec d
+	jr asnormalise
+
+asrepack:
+; from D,BHL
+	ex de,hl
+	rl b
+	pop af				; retrieve sign of result
+	rr h
+	rr b
+	ld l,b
+	ret					; finished: result in HLDE
+
+
+; -------------------------------------------------------------------------------
+; Multiplication
+;
+; multiplicand in HLDE, multiplier in H'L'D'E'
+
+flmult:
+	ld a,h
+	rl l
+	rla
+	push af			; save exponent, and sign in carry
+	scf
+	rr l				; set implied bit 23; multiplicand fraction in LDE
+	exx
+	ld a,h
+	rl l
+	rla
+	push af
+	scf
+	rr l				; set implied bit 23; multiplier fraction in L'D'E'
+	exx
+
+	pop af
+	rr c				; store sign in bit 7 of C
+	ld b,a
+	pop af
+	rr c				; signs now in bits 6 and 7 of C
+	add a,b			; exponent sum
+	sub 127			; subtract extra bias (allowable range is: -126 .. +127)
+	ld b,a
+	ld a,c
+	rla
+	xor c
+	rla
+	push af			; store final sign in carry
+	push bc			; store provisional exponent from B
+
+; fractions stored in 24 bits: LDE x L'D'E'
+	exx
+	ld a,l
+	ld hl,0
+	exx
+	ld c,l
+	ld h,d
+	ld l,e		; multiplier to CHL
+	ld e,a		; multiplicand to ED'E'
+	xor a			; result (top 24 bits) in AH'L'
+	ld b,25
+	jr mul24sh	; need to shift multiplier first (carry is clear)
+
+mul24lp:
+	jr nc,mul24noadd
+	exx
+	add hl,de
+	exx
+	adc a,e		; add multiplicand to result
+mul24noadd:
+	rra
+	exx
+	rr h
+	rr l
+	exx			; immediately shift the result right (over 24 bits, which produces top 24 bits in AH'L')
+mul24sh:
+	rr c
+	rr h
+	rr l			; shift multiplier right, taking in carry from shifted result (over 24 bits, which produces bottom 24 bits of result in CHL)
+	djnz mul24lp
+
+; full 48-bit product is now in AH'L'CHL
+	pop de				
+	ld b,d				; exponent to B
+	exx
+	push hl
+	exx
+	pop hl				; top 32 bits of product to AHLC
+
+; The binary point is now two places to the right of the top bit,
+; i.e. between bits 22 and 21:
+; product = 01.xxx.., 10.xxx.. or 11.xxx.. (instead of 1.xxxx..)
+; e.g. 1.1 * 1.1 = 10.01 (1.5 * 1.5 = 2.25)
+;      1.111 * 1.111 = 11.10.. (1.875 * 1.875 = 3.515..)
+; and  1.0 * 1.0 = 01.00 (1.0 * 1.0 = 1.0)
+; - so we leave the fraction as it is and increment the exponent to compensate.
+	inc b
+
+mulnormalise:				; over 32 bits
+	or a
+	jp m,mulrepack			; top bit set - finished
+	sla c
+	adc hl,hl
+	rla
+	dec b
+	jr nz,mulnormalise
+
+; exponent decremented to zero, so underflow -> truncate to zero
+	ld c,b
+	ld l,b
+	ld h,b
+
+; should round from lower 8 bits (i.e. bit 7 of C)
+; - will truncate for now
+mulrepack:
+	ld e,l
+	ld d,h
+	ld l,a				; transfer fraction to LDE
+	ld h,b				; exponent to H
+	rl l
+	pop af				; retrieve sign of result
+	rr h
+	rr l
+	ret					; finished: result in HLDE
+
+
+; -------------------------------------------------------------------------------
+; Division
+;
+; dividend in HLDE, divisor in H'L'D'E'
+
+fldiv:
+	ld a,h
+	rl l
+	rla
+	push af			; save exponent, and sign in carry
+	scf
+	rr l				; set implied bit 23
+	ld h,l
+	ld l,d
+	push hl
+	ld h,e
+	ld l,0			; shifted (aligned) to bit 31 (low byte is zero)
+
+	exx
+	pop bc			; dividend to B'C'HL
+	ld a,h
+	rl l
+	rla
+	push af
+	scf
+	rr l
+	ld h,l
+	ld l,d
+	ld d,e
+	ld e,0
+	ex de,hl
+	push hl
+	ld h,b
+	ld l,c			; dividend to H'L'HL
+	exx
+	pop de			; divisor to D'E'DE
+	pop af
+	rr c				; store sign in bit 7 of C
+	ld b,a
+	pop af
+	rr c				; signs now in bits 6 and 7 of C
+	sub b				; exponent difference
+	add a,127		; add back bias (allowable range is: -126 .. +127)
+	ld b,a
+	ld a,c
+	rla
+	xor c
+	rla
+	push af			; store final sign in carry
+	push bc			; store provisional exponent from B
+
+; fractions stored in 32 bits: H'L'HL / D'E'DE
+; aligned (shifted) to bit 31
+
+; result will be shifted into B'C'CA over 32 bits, so no need to clear it first
+	or a
+	ld b,33
+	jr divstart			; we need top bit (set) from dividend
+
+divlp:
+	rla					; shift result left
+	rl c
+	exx
+	rl c
+	rl b
+	exx
+
+	add hl,hl			; shift dividend left
+	exx
+	adc hl,hl
+	exx
+	jr c,divsubonly	; if carry, use bit for quotient to allow full divisor
+
+divstart:
+	sbc hl,de			; trial subtract divisor
+	exx
+	sbc hl,de
+	exx
+	jr nc,divnorest
+	add hl,de			; restore (add back) divisor
+	exx
+	adc hl,de
+	exx
+	or a					; 0 for quotient bit
+	jr divagain
+
+divsubonly:
+	or a					; subtract divisor
+	sbc hl,de			; for when dividend overflows left (1 in top bit)
+	exx
+	sbc hl,de
+	exx
+
+divnorest:
+	scf					; 1 for quotient bit
+divagain:
+	djnz divlp			;
+
+; fraction quotient in B'C'CA
+	pop de				
+	ld b,d				; exponent to B
+	exx
+	push bc
+	exx
+	pop hl				; fraction to HLCA
+
+;	nop
+
+divnormalise:				; over 32 bits
+	bit 7,h
+	jr nz,divrepack
+	add a,a
+	rl c
+	adc hl,hl
+	dec b
+	jr nz,divnormalise
+
+; exponent decremented to zero, so underflow -> truncate to zero
+	ld c,b
+	ld l,b
+	ld h,b
+
+; should round from lower 8 bits (i.e. bit 7 of A)
+; - will truncate for now
+divrepack:
+	ld e,c
+	ld d,l
+	ld l,h				; transfer fraction to LDE
+	ld h,b				; exponent to H
+	rl l
+	pop af				; retrieve sign of result
+	rr h
+	rr l
+	ret					; finished: result in HLDE
+
+; -------------------------------------------------------------------------------

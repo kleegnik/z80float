@@ -1,0 +1,33 @@
+4 bits:
+
+8/12 (= 1000/1100b)
+
+D/V = Q rem R
+set Q=0
+
+(5)
+D<V .. 0 for Q
+
+(4)
+Q<<1 = 0
+D<<1 = 16
+carry .. D = 0-12 ([1]0000-1100b) = 4 (0100b)
+set carry
+
+(3)
+Q<<1 +carry = 01
+D<<1 = 8 (1000b)
+no carry .. D<V .. 0 for Q
+
+(2)
+Q<<1 +0 = 010b
+D<<1 = 16
+carry .. D = 0-12 ([1]0000-1100b) = 4 (0100b)
+set carry
+
+(1)
+Q<<1 +carry = 0101b
+
+-end-
+
+Q = 5

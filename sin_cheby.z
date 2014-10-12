@@ -1,0 +1,84 @@
+; 7th order Chebyshev polynomial:
+; sin(x) ~= x - 0.166666546*x^3 + 0.00833216076*x^5 - 0.000195152832*x^7
+;
+;x2 = x*x
+;sin(x) = x*(1+x2*(a + x2*(b + c*x2)))
+;
+; [= x-a*pow(x,3)+b*pow(x,5)-c*pow(x,7)]
+;
+; -> around 15000 clock cycles.
+
+
+   org 0
+
+start:
+   di
+   ld sp,2048
+
+; HLDE contains float (x) on entry: 0<x<1.57.. (at least pi/2)
+
+	push hl
+	push de			; save x
+	push hl
+	push de
+	exx
+	pop de
+	pop hl
+	exx
+	call flmult		; HLDE = x*x
+	push hl
+	push de
+	push hl
+	push de			; save x*x twice
+
+	exx
+	ld hl,$B94C
+	ld de,$A1F0		; -0.000195152832
+	exx
+
+	call flmult
+
+	exx
+	ld hl,$3C08
+	ld de,$839D		; 0.00833216076
+	exx
+
+	call fladd
+
+	exx
+	pop de
+	pop hl
+	exx
+
+	call flmult
+
+	exx
+	ld hl,$BE2A
+	ld de,$AAA3		; -0.166666546
+	exx
+
+	call fladd
+	exx
+	pop de
+	pop hl
+	exx
+	call flmult
+
+	exx
+	ld hl,$3F80
+	ld de,$0000		; 1.0
+	exx
+
+	call fladd
+	exx
+	pop de
+	pop hl
+	exx
+	call flmult
+	halt
+
+
+; ------------------------------------------
+include arithmetic.z
+
+; end

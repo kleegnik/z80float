@@ -1,0 +1,254 @@
+; try out some stack language arithmetic methods.
+
+; ------------------------------------------
+; opcodes (even - for fast indexing)
+
+OP_END equ 0
+OP_NUM equ 2
+OP_ADD equ 4
+OP_SUB equ 6
+OP_MUL equ 8
+OP_DIV equ 10
+OP_BYTE equ 12
+OP_STOI equ 14
+OP_RCLI equ 16
+OP_LOOP equ 18
+
+; ------------------------------------------
+
+	org 0
+
+	di
+	ld sp,2048
+
+	call calc
+;	defb OP_NUM
+;	defb $40,$55,$1E,$B8		; = 3.33
+
+	defb OP_BYTE,0
+	defb OP_STOI,200
+lp1:
+	defb OP_NUM					; stack a number
+	defb $3F,$80,$00,$00		; = 1.0
+	defb OP_RCLI
+	defb OP_DIV
+	defb OP_ADD
+	defb OP_LOOP,lp1-$-2
+
+	defb OP_END
+
+	halt
+
+; ------------------------------------------
+;
+instrptr: defw 0			; pointer to next instruction code
+calcstkbot:
+calcstk:	defs 64
+calcstkptr: defw 0
+
+; stack grows upwards in memory.
+; e.g. with float HLDE on top of stack -
+;
+;  calcstkptr | E
+;      ^      | D
+;      |      | L
+;      |      | H
+;  calcstkbot | -
+;
+
+; for loops
+calcindex: defb 0
+
+calc:
+	ld hl,calcstkbot
+	ld (calcstkptr),hl	; set stack
+	pop hl
+	ld (instrptr),hl		; pointer to next instruction
+	jr calc1a
+calc1:
+	ld hl,(instrptr)
+calc1a:
+	ld a,(hl)
+	inc hl
+	or a
+	jr nz,calc2
+	push hl
+	jr getparam			; store final value (top of stack) in HLDE
+							; and return (opcode 0)
+
+calc2:
+	ld (instrptr),hl		; now points to byte after opcode
+	ld e,a
+	ld d,0					; opcodes are even, so no need to double offset
+	ld hl,calctable-2		; compensate for first opcode being 1
+	add hl,de
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ex de,hl
+	ld de,calc1
+	push de					; return address from opcode stub
+	jp (hl)
+
+
+; ------------------------------------------
+calctable:
+	defw stacknum
+	defw calcopadd
+	defw calcopsub
+	defw calcopmul
+	defw calcopdiv
+	defw stackbyte
+	defw calcstoi
+	defw calcrcli
+	defw calcloop
+
+; ------------------------------------------
+; move 2 numbers from top of stack (removing them) into HLDE (2nd), H'L'D'E (top)
+get2params:
+	exx
+	call getparam
+	exx
+
+; ------------------------------------------
+; move number from top of stack (removing it) and store in HLDE
+getparam:
+	ld hl,(calcstkptr)
+	ld e,(hl)
+	dec hl
+	ld d,(hl)
+	dec hl
+	ld c,(hl)
+	dec hl
+	ld b,(hl)
+	dec hl
+	ld (calcstkptr),hl
+	ld h,b
+	ld l,c
+	ret
+
+; ------------------------------------------
+; push a given (IEEE float) number onto stack
+stacknum:
+	ld hl,(instrptr)
+	ld de,(calcstkptr)
+	inc de
+	ld bc,4
+	ldir
+	ld (instrptr),hl
+	dec de
+	ld (calcstkptr),de
+	ret
+
+; ------------------------------------------
+; fetch following byte and store in index register I
+calcstoi:
+	ld hl,(instrptr)
+	ld a,(hl)
+	inc hl
+	ld (instrptr),hl
+	ld (calcindex),a
+	ret
+
+; ------------------------------------------
+; get index register I and push onto stack as float
+calcrcli:
+	ld a,(calcindex)
+	jr stackbyte1
+
+
+; ------------------------------------------
+; convert a given unsigned byte into IEEE float and push onto stack
+stackbyte:
+	ld hl,(instrptr)
+	ld a,(hl)
+	inc hl
+	ld (instrptr),hl
+stackbyte1:
+	ld bc,0
+	ld d,b
+	ld e,c
+	or a
+	jr z,sb3
+	ld b,127+7
+sb1:
+	add a,a
+	jr c,sb2
+	dec b
+	jr sb1
+sb2:
+	srl b
+	rra
+	ld c,a
+sb3:
+	jr stackflt2		; float now in BCDE; jump forward to stack it
+
+
+; ------------------------------------------
+; loop using index register
+calcloop:
+	ld hl,(instrptr)
+	ld e,(hl)			; get signed displacement byte
+	inc hl				; skip over displacement
+;	ld a,(calcindex)
+;	dec a
+;	ld (calcindex),a
+	exx
+	ld hl,calcindex
+	dec (hl)
+	exx					; 1 less byte; 1 less clock cycle..
+	jr z,calcloop1		; finish loop when index register is 0
+	ld a,e
+	rla
+	sbc a,a
+	ld d,a				; sign-extend to 16 bits
+	add hl,de			; adjust opcode pointer
+calcloop1:
+	ld (instrptr),hl
+	ret
+
+
+; ------------------------------------------
+calcopadd:
+	call get2params
+	call fladd				; continue into stack HLDE routine
+
+; ------------------------------------------
+; push float HLDE onto stack
+stackflt:
+	ld b,h
+	ld c,l
+stackflt2:
+	ld hl,(calcstkptr)
+	inc hl
+	ld (hl),b
+	inc hl
+	ld (hl),c
+	inc hl
+	ld (hl),d
+	inc hl
+	ld (hl),e
+	ld (calcstkptr),hl
+	ret
+
+; ------------------------------------------
+calcopsub:
+	call get2params
+	call flsub
+	jr stackflt
+
+; ------------------------------------------
+calcopmul:
+	call get2params
+	call flmult
+	jr stackflt
+
+; ------------------------------------------
+calcopdiv:
+	call get2params
+	call fldiv
+	jr stackflt
+
+
+; ------------------------------------------
+include arithmetic.z

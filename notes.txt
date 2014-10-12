@@ -1,0 +1,19 @@
+registers for each operation:
+
+* input float parameters are in HLDE & H'L'D'E'
+
+registers for arithmetic:
+* add/sub:
+  fraction1 in BH'L', fraction2 in CD'E'
+  exponents in A & H
+
+* mul:
+  multiplicand in ED'E', multiplier in CHL
+  full 48-bit product in AH'L'CHL
+
+* div:
+  32-bit fractions in H'L'HL / D'E'DE (low bytes L and E are zero)
+  32-bit fraction quotient in B'C'CA
+  [24-bit fraction version:
+    dividend in AHL, divisor in CDE
+    build quotient in C'H'L']

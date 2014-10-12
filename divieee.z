@@ -1,0 +1,139 @@
+; IEEE floating-point division
+
+	org 0
+
+start:
+	ld sp,2048
+	di
+
+; dividend in HLDE, divisor in H'L'D'E'
+	ld a,h
+	rl l
+	rla
+	push af			; save exponent, and sign in carry
+	scf
+	rr l				; set implied bit 23
+	ld h,l
+	ld l,d
+	push hl
+	ld h,e
+	ld l,0			; shifted (aligned) to bit 31 (low byte is zero)
+
+	exx
+	pop bc			; dividend to B'C'HL
+	ld a,h
+	rl l
+	rla
+	push af
+	scf
+	rr l
+	ld h,l
+	ld l,d
+	ld d,e
+	ld e,0
+	ex de,hl
+	push hl
+	ld h,b
+	ld l,c			; dividend to H'L'HL
+	exx
+	pop de			; divisor to D'E'DE
+	pop af
+	rr c				; store sign in bit 7 of C
+	ld b,a
+	pop af
+	rr c				; signs now in bits 6 and 7 of C
+	sub b				; exponent difference
+	add a,127		; add back bias (allowable range is: -126 .. +127)
+	ld b,a
+	ld a,c
+	rla
+	xor c
+	rla
+	push af			; store final sign in carry
+	push bc			; store provisional exponent from B
+
+; fractions stored in 32 bits: H'L'HL / D'E'DE
+; aligned (shifted) to bit 31
+
+; result will be shifted into B'C'CA, so no need to clear it first
+	or a
+	ld b,33
+	jr divstart			; we need top bit (set) from dividend
+
+divlp:
+	rla					; shift result left
+	rl c
+	exx
+	rl c
+	rl b
+	exx
+
+	add hl,hl			; shift dividend left
+	exx
+	adc hl,hl
+	exx
+	jr c,divsubonly	; if carry, use bit for quotient to allow full divisor
+
+divstart:
+	sbc hl,de			; trial subtract divisor
+	exx
+	sbc hl,de
+	exx
+	jr nc,divnorest
+	add hl,de			; restore (add back) divisor
+	exx
+	adc hl,de
+	exx
+	or a					; 0 for quotient bit
+	jr divagain
+
+divsubonly:
+	or a					; subtract divisor
+	sbc hl,de			; for when dividend overflows left (1 in top bit)
+	exx
+	sbc hl,de
+	exx
+
+divnorest:
+	scf					; 1 for quotient bit
+divagain:
+	djnz divlp			;
+
+
+; fraction quotient in B'C'CA
+	pop de				
+	ld b,d				; exponent to B
+	exx
+	push bc
+	exx
+	pop hl				; fraction to HLCA
+
+;	nop
+
+normalise:				; over 32 bits
+	bit 7,h
+	jr nz,repack
+	add a,a
+	rl c
+	adc hl,hl
+	dec b
+	jr nz,normalise
+
+; exponent decremented to zero, so underflow -> truncate to zero
+	ld c,b
+	ld l,b
+	ld h,b
+
+; should round from lower 8 bits (i.e. bit 7 of A)
+; - will truncate for now
+repack:
+	ld e,c
+	ld d,l
+	ld l,h				; transfer fraction to LDE
+	ld h,b				; exponent to H
+	rl l
+	pop af				; retrieve sign of result
+	rr h
+	rr l
+
+	halt					; finished: result in HLDE
