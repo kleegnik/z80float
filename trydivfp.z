@@ -1,90 +1,90 @@
 ; try different size fractions for division (for fp)
 
-	org 0
+    org 0
 
 start:
-	ld sp,2048
-	di
+    ld sp,2048
+    di
 
-	call div24
-	halt
+    call div24
+    halt
 
 
 ; --------------------------------------------
 div8:
-	ld a,b
-	ld e,c
+    ld a,b
+    ld e,c
 
 ; dividend in A, divisor in E
 ; both should be normalised, i.e bit 7 set
-;	ld d,0
+;   ld d,0
 
-	ld b,9				; for 8 bits
-	jr div8start
+    ld b,9              ; for 8 bits
+    jr div8start
 
 div8lp:
-	rl d					; shift result left
-	add a,a				; shift dividend left
+    rl d                    ; shift result left
+    add a,a             ; shift dividend left
 
 ; if overflow from 8 bits, then dividend > divisor,
 ; so subtract divisor from lower 8 bits and set
 ; quotient bit to 1.
-	jr c,div8subonly
+    jr c,div8subonly
 
 div8start:
-	cp e
-	ccf
-	jr nc,div8again
+    cp e
+    ccf
+    jr nc,div8again
 
 div8subonly:
-	sub e
-	scf
+    sub e
+    scf
 
 div8again:
-	djnz div8lp
+    djnz div8lp
 
 ; quotient in D
-	ret
+    ret
 
 
 ; --------------------------------------------
 div8a:
-	ld a,b
-	ld e,c
+    ld a,b
+    ld e,c
 
 ; dividend in A, divisor in E
 ; both should be normalised, i.e bit 7 set
-;	ld d,0
+;   ld d,0
 
-	ld b,8				; for 8 bits
-	jr div8astart
+    ld b,8              ; for 8 bits
+    jr div8astart
 
 div8alp:
 ; after dividend shift:
 ; if overflow from 8 bits, then dividend > divisor,
 ; so subtract divisor from lower 8 bits and set
 ; quotient bit to 1.
-	jr c,div8asubonly
+    jr c,div8asubonly
 
 div8astart:
-	cp e
-	ccf
-	jr nc,div8aagain
+    cp e
+    ccf
+    jr nc,div8aagain
 
 ; if overflow from 8 bits, then dividend > divisor,
 ; so subtract divisor from lower 8 bits and set
 ; quotient bit to 1.
 div8asubonly:
-	sub e
-	scf
+    sub e
+    scf
 
 div8aagain:
-	rl d					; shift result left
-	add a,a				; shift dividend left
-	djnz div8alp
+    rl d                    ; shift result left
+    add a,a             ; shift dividend left
+    djnz div8alp
 
 ; quotient in D
-	ret
+    ret
 
 
 ; --------------------------------------------
@@ -92,43 +92,43 @@ div24:
 ; dividend in AHL, divisor in CDE
 ; build quotient in C'H'L'
 
-	ld a,$C0
-	ld hl,0			; 1.5 x 2^23
-	ld c,$D9
-	ld de,$999A		; ~= 1.7 x 2^23
+    ld a,$C0
+    ld hl,0             ; 1.5 x 2^23
+    ld c,$D9
+    ld de,$999A         ; ~= 1.7 x 2^23
 ; -> C'H'L' = $70F0F0 = 0.882352828979 x 2^23 = 1.5/1.7 = correct
 
-	ld b,24
-	or a
-	jr div24start
+    ld b,24
+    or a
+    jr div24start
 
 div24lp:
-	add hl,hl
-	rla					; shift dividend left
-	jr c,div24subonly
+    add hl,hl
+    rla                 ; shift dividend left
+    jr c,div24subonly
 
 div24start:
-	sbc hl,de
-	sbc a,c				; trial subtract divisor
-	jr nc,div24norest	; it goes
-	add hl,de
-	adc a,c				; doesn't go; add back
-	or a					; 0 for quotient bit
-	jr div24again
+    sbc hl,de
+    sbc a,c             ; trial subtract divisor
+    jr nc,div24norest   ; it goes
+    add hl,de
+    adc a,c             ; doesn't go; add back
+    or a                ; 0 for quotient bit
+    jr div24again
 
 div24subonly:
-	or a
-	sbc hl,de
-	sbc a,c
+    or a
+    sbc hl,de
+    sbc a,c
 
 div24norest:
-	scf					; 1 for quotient bit
+    scf                 ; 1 for quotient bit
 
 div24again:
-	exx
-	adc hl,hl
-	rl c					; shift result left
-	exx
-	djnz div24lp
+    exx
+    adc hl,hl
+    rl c                ; shift result left
+    exx
+    djnz div24lp
 
-	ret
+    ret

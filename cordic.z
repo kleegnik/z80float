@@ -90,7 +90,7 @@ cloop:
 
 	ld a,(YVAR+3)
 	rla					; get sign of Y into carry
-	call addORsub32	; X = X +/- (Y >> B) [Y<0 / Y>=0]
+	call addORsub32		; X = X +/- (Y >> B) [Y<0 / Y>=0]
 	ld (XVAR+2),hl
 	exx
 	ld (XVAR),hl
@@ -109,7 +109,7 @@ cloop:
 	ld a,(YVAR+3)
 	rla					; get sign of Y into carry
 	push af				; save for Z calculation
-	call addORsub32	; Y = Y +/- (Y >> B) [Y<0 / Y>=0]
+	call addORsub32	    ; Y = Y +/- (Y >> B) [Y<0 / Y>=0]
 	ld (YVAR+2),hl
 	exx
 	ld (YVAR),hl
@@ -132,7 +132,7 @@ cloop:
 	ld hl,(ZVAR+2)		; HLH'L' holds Z
 	pop af				; retrieve Y sign for Z calculation
 	ccf					; reverse logic
-	call addORsub32	; Z = Z +/- (Y >> B) [Y>=0 / Y<0]
+	call addORsub32	    ; Z = Z +/- (Y >> B) [Y>=0 / Y<0]
 	ld (ZVAR+2),hl
 	exx
 	ld (ZVAR),hl
@@ -164,13 +164,13 @@ crep:
 	jp cloop
 	
 finish:
-	call dispall
+;	call dispall
 	ld hl,ZVAR
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
 	inc hl
-	ld l,(hl)			; rare usage!
+	ld l,(hl)	    		; rare usage!
 	ld a,128				; double first (bias=127)
 norm:
 	bit 7,l
@@ -240,7 +240,7 @@ print41:
 		
 
 ; ----------------------------------------------------
-; shift signed DE,DE' right by A places
+; shift signed DE,DE' right by B places
 ;
 shiftDE:
 	ld a,b				; save shift count

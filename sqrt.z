@@ -1,0 +1,52 @@
+; Square-root using Newton's method.
+;
+; radicand in HLDE
+; The result is returned in HLDE
+
+    org 0
+
+    di
+    ld sp,2048
+    jr start
+
+N:  defw 0,0
+
+start:
+    ld (N),hl
+    ld (N+2),de     ; save radicand (N)
+	add hl,hl
+	ld a,h
+	sub 127
+	srl a
+	add a,127
+	ld h,a
+	srl h
+	rr l            ; create first guess (x) based on half (truncated) the exponent
+
+    ld b,4          ; 3 is not quite enough
+loop:
+    push bc
+    push hl
+    push de
+    exx
+    ld hl,(N)
+    ld de,(N+2)
+    call fl24div
+    exx
+    pop de
+    pop hl
+    call fladd      ; x + N/x
+
+    add hl,hl
+    dec h
+    srl h
+    rr l            ; 0.5*(x+N/x) is new guess
+
+    pop bc
+    djnz loop
+
+	halt
+
+
+; -----------------------------------------
+include arithmetic.z
