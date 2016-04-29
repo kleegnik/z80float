@@ -31,61 +31,61 @@ start:
 ;
 ; -> around 15000 clock cycles. Unrolled loop version isn't much faster.
 
-;	e = coeff[ncoeff-1]
-;	for n in range(ncoeff-2,-1,-1):
-;		e = e*x+coeff[n]
+;   e = coeff[ncoeff-1]
+;   for n in range(ncoeff-2,-1,-1):
+;       e = e*x+coeff[n]
 
 chexp:
-	ld (xvar),hl
-	ld (xvar+2),de	; save x
-	ld hl,coeff6+3	; last byte of penultimate coefficient
-	ld (coeffptr),hl
-	ld hl,$3956
-	ld de,$A4BD		; e = final coefficient = 0.00020470
+    ld (xvar),hl
+    ld (xvar+2),de      ; save x
+    ld hl,coeff6+3      ; last byte of penultimate coefficient
+    ld (coeffptr),hl
+    ld hl,$3956
+    ld de,$A4BD         ; e = final coefficient = 0.00020470
 
-	ld b,7
+    ld b,7
 chexp1:
-	push bc
-	exx
-	ld hl,(xvar)
-	ld de,(xvar+2)
-	exx
-	call flmult		; HLDE = e*x
-	exx
-	ld bc,(coeffptr)
-	ld a,(bc)
-	ld e,a
-	dec bc
-	ld a,(bc)
-	ld d,a
-	dec bc
-	ld a,(bc)
-	ld l,a
-	dec bc
-	ld a,(bc)
-	ld h,a
-	dec bc			; HLDE = coefficient
-	ld (coeffptr),bc
-	exx
-	call fladd		; e = e*x + coeff
+    push bc
+    exx
+    ld hl,(xvar)
+    ld de,(xvar+2)
+    exx
+    call flmult         ; HLDE = e*x
+    exx
+    ld bc,(coeffptr)
+    ld a,(bc)
+    ld e,a
+    dec bc
+    ld a,(bc)
+    ld d,a
+    dec bc
+    ld a,(bc)
+    ld l,a
+    dec bc
+    ld a,(bc)
+    ld h,a
+    dec bc              ; HLDE = coefficient
+    ld (coeffptr),bc
+    exx
+    call fladd          ; e = e*x + coeff
 
-	pop bc
-	djnz chexp1
+    pop bc
+    djnz chexp1
 
-	halt
+    halt
 
 ;
 xvar:       defw 0,0
 coeffptr:   defw 0
 coeff:
-	defb $3F,$7F,$FF,$FD		; 0.99999980
-	defb $3F,$7F,$FF,$FE		; 0.99999990
-	defb $3F,$00,$00,$6B		; 0.50000635
-	defb $3E,$2A,$AB,$03		; 0.16666799
-	defb $3D,$2A,$89,$79		; 0.04163501
-	defb $3C,$08,$74,$AE		; 0.00832860
+    defb $3F,$7F,$FF,$FD        ; 0.99999980
+    defb $3F,$7F,$FF,$FE        ; 0.99999990
+    defb $3F,$00,$00,$6B        ; 0.50000635
+    defb $3E,$2A,$AB,$03        ; 0.16666799
+    defb $3D,$2A,$89,$79        ; 0.04163501
+    defb $3C,$08,$74,$AE        ; 0.00832860
 coeff6:
-	defb $3A,$BC,$A5,$E3		; 0.00143927
+    defb $3A,$BC,$A5,$E3        ; 0.00143927
 
 
 
@@ -105,65 +105,65 @@ coeff6:
 chsin:
 ; HLDE contains float (x) on entry: 0<x<1.57.. (at least pi/2)
 
-	push hl
-	push de			; save x
-	push hl
-	push de
-	exx
-	pop de
-	pop hl
-	exx
-	call flmult		; HLDE = x*x
-	push hl
-	push de
-	push hl
-	push de			; save x*x twice
+    push hl
+    push de         ; save x
+    push hl
+    push de
+    exx
+    pop de
+    pop hl
+    exx
+    call flmult     ; HLDE = x*x
+    push hl
+    push de
+    push hl
+    push de         ; save x*x twice
 
-	exx
-	ld hl,$B94C
-	ld de,$A1F0		; -0.000195152832
-	exx
+    exx
+    ld hl,$B94C
+    ld de,$A1F0     ; -0.000195152832
+    exx
 
-	call flmult
+    call flmult
 
-	exx
-	ld hl,$3C08
-	ld de,$839D		; 0.00833216076
-	exx
+    exx
+    ld hl,$3C08
+    ld de,$839D     ; 0.00833216076
+    exx
 
-	call fladd
+    call fladd
 
-	exx
-	pop de
-	pop hl
-	exx
+    exx
+    pop de
+    pop hl
+    exx
 
-	call flmult
+    call flmult
 
-	exx
-	ld hl,$BE2A
-	ld de,$AAA3		; -0.166666546
-	exx
+    exx
+    ld hl,$BE2A
+    ld de,$AAA3     ; -0.166666546
+    exx
 
-	call fladd
-	exx
-	pop de
-	pop hl
-	exx
-	call flmult
+    call fladd
+    exx
+    pop de
+    pop hl
+    exx
+    call flmult
 
-	exx
-	ld hl,$3F80
-	ld de,$0000		; 1.0
-	exx
+    exx
+    ld hl,$3F80
+    ld de,$0000     ; 1.0
+    exx
 
-	call fladd
-	exx
-	pop de
-	pop hl
-	exx
-	call flmult
-	halt
+    call fladd
+    exx
+    pop de
+    pop hl
+    exx
+    call flmult
+    halt
 
 
 ; ------------------------------------------

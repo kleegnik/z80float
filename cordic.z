@@ -1,42 +1,41 @@
-; CORDIC routine for hyperbolic functions
-; Uses fixed-point fractions
-; with 24 bits of IEEE float mantissa (with implied 1 at bit 23).
+; CORDIC routine for hyperbolic/log/sqrt functions.
+; Uses fixed-point fractions, with 24 bits of IEEE float mantissa (with implied 1 at bit 23).
 
-	org 0
+    org 0
 
 start:
-	di
-	ld sp,2048
+    di
+    ld sp,2048
 
 ; HLDE contains float (n) on entry: 1<n<2 (exponent = 0)
-	ld a,l
-	ld hl,XVAR
-	ld (hl),e
-	inc hl
-	ld (hl),d
-	inc hl
-	add a,128
-	ld (hl),a
-	inc hl
-	ld c,0
-	jr nc,s1
-	inc c
+    ld a,l
+    ld hl,XVAR
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    inc hl
+    add a,128
+    ld (hl),a
+    inc hl
+    ld c,0
+    jr nc,s1
+    inc c
 s1:
-	ld (hl),c		; n+1
+    ld (hl),c       ; n+1
 
-	ld hl,YVAR
-	ld (hl),e
-	inc hl
-	ld (hl),d
-	inc hl
-;	sub 128			; -256 -> leave as is
-	ld (hl),a
-	inc hl
-	ld (hl),0		; n-1
+    ld hl,YVAR
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    inc hl
+;   sub 128         ; -256 -> leave as is
+    ld (hl),a
+    inc hl
+    ld (hl),0       ; n-1
 
-	call cordichyp
-;	call dispall
-	halt
+    call cordichyp
+;   call dispall
+    halt
 
 
 ; scaled IEEE values, stored as follows:
@@ -44,10 +43,10 @@ s1:
 ;
 ; defb M0, M1, M2, M3
 
-;XVAR: defb $3B,$8F,$9A,$00		; = 1/K = 1.207496 x 2^23 (0x009A8F3B)
-XVAR: defb $00,$00,$80,$01		; = 3.0 x 2^23
-YVAR: defb $00,$00,$80,$00		; = 1.0 x 2^23
-ZVAR: defb $00,$00,$00,$00		; = 0
+;XVAR: defb $3B,$8F,$9A,$00     ; = 1/K = 1.207496 x 2^23 (0x009A8F3B)
+XVAR: defb $00,$00,$80,$01      ; = 3.0 x 2^23
+YVAR: defb $00,$00,$80,$00      ; = 1.0 x 2^23
+ZVAR: defb $00,$00,$00,$00      ; = 0
 
 XTMP: defs 4
 
@@ -62,221 +61,170 @@ XTMP: defs 4
 ; *******************
 
 cordichyp:
-	exx
-	ld bc,atanhtab		; store pointer to atanh table
-	exx
-	ld b,1				; shift count
+    exx
+    ld bc,atanhtab      ; store pointer to atanh table
+    exx
+    ld b,1              ; shift count
 
 cloop:
-;	push bc
-;	ld a,b
-;	call print8
-;	pop bc
-;	ld a,10
-;	out (254),a
+;   push bc
+;   ld a,b
+;   call print8
+;   pop bc
+;   ld a,10
+;   out (254),a
 
-	ld hl,(XVAR+2)
-	ld (XTMP+2),hl
-	exx
-	ld hl,(XVAR)
-	ld (XTMP),hl		; store X in HL,HL' and save in temp area
-	exx
+    ld hl,(XVAR+2)
+    ld (XTMP+2),hl
+    exx
+    ld hl,(XVAR)
+    ld (XTMP),hl        ; store X in HL,HL' and save in temp area
+    exx
 
-	ld de,(YVAR+2)
-	exx
-	ld de,(YVAR)
-	exx					; put Y in DE,DE'
-	call shiftDE		; shift Y (DE,DE') right
+    ld de,(YVAR+2)
+    exx
+    ld de,(YVAR)
+    exx                 ; put Y in DE,DE'
+    call shiftDE        ; shift Y (DE,DE') right
 
-	ld a,(YVAR+3)
-	rla					; get sign of Y into carry
-	call addORsub32		; X = X +/- (Y >> B) [Y<0 / Y>=0]
-	ld (XVAR+2),hl
-	exx
-	ld (XVAR),hl
-	exx
+    ld a,(YVAR+3)
+    rla                 ; get sign of Y into carry
+    call addORsub32     ; X = X +/- (Y >> B) [Y<0 / Y>=0]
+    ld (XVAR+2),hl
+    exx
+    ld (XVAR),hl
+    exx
 
-	ld de,(XTMP+2)
-	exx
-	ld de,(XTMP)
-	exx
-	call shiftDE		; shift XTMP (DE,DE') right
+    ld de,(XTMP+2)
+    exx
+    ld de,(XTMP)
+    exx
+    call shiftDE        ; shift XTMP (DE,DE') right
 
-	ld hl,(YVAR+2)
-	exx
-	ld hl,(YVAR)
-	exx
-	ld a,(YVAR+3)
-	rla					; get sign of Y into carry
-	push af				; save for Z calculation
-	call addORsub32	    ; Y = Y +/- (Y >> B) [Y<0 / Y>=0]
-	ld (YVAR+2),hl
-	exx
-	ld (YVAR),hl
-	exx
+    ld hl,(YVAR+2)
+    exx
+    ld hl,(YVAR)
+    exx
+    ld a,(YVAR+3)
+    rla                 ; get sign of Y into carry
+    push af             ; save for Z calculation
+    call addORsub32     ; Y = Y +/- (Y >> B) [Y<0 / Y>=0]
+    ld (YVAR+2),hl
+    exx
+    ld (YVAR),hl
+    exx
 
 ; do Z calc
-	exx
-	ld a,(bc)
-	ld e,a
-	inc bc
-	ld a,(bc)
-	ld d,a				; get lower 16 bits in D'E'
-	inc bc
-	ld a,(bc)			; bits 23..16 in A
-	inc bc
-	ld hl,(ZVAR)		; lower 16 bits of Z to H'L'
-	exx
-	ld e,a
-	ld d,0				; DED'E' holds atanhtab entry
-	ld hl,(ZVAR+2)		; HLH'L' holds Z
-	pop af				; retrieve Y sign for Z calculation
-	ccf					; reverse logic
-	call addORsub32	    ; Z = Z +/- (Y >> B) [Y>=0 / Y<0]
-	ld (ZVAR+2),hl
-	exx
-	ld (ZVAR),hl
-	exx
+    exx
+    ld a,(bc)
+    ld e,a
+    inc bc
+    ld a,(bc)
+    ld d,a              ; get lower 16 bits in D'E'
+    inc bc
+    ld a,(bc)           ; bits 23..16 in A
+    inc bc
+    ld hl,(ZVAR)        ; lower 16 bits of Z to H'L'
+    exx
+    ld e,a
+    ld d,0              ; DED'E' holds atanhtab entry
+    ld hl,(ZVAR+2)      ; HLH'L' holds Z
+    pop af              ; retrieve Y sign for Z calculation
+    ccf                 ; reverse logic
+    call addORsub32     ; Z = Z +/- (Y >> B) [Y>=0 / Y<0]
+    ld (ZVAR+2),hl
+    exx
+    ld (ZVAR),hl
+    exx
 
 ; shifts 4 and 13 are repeated [tested - this works]
-	inc b
-	ld a,b
-	cp 5
-	jr z,crep
-	cp 14
-	jr z,crep
+    inc b
+    ld a,b
+    cp 5
+    jr z,crep
+    cp 14
+    jr z,crep
 
-	ld c,1				; 1 = repeat toggle on 4 and 13
-	cp 25
-	jp nz,cloop
-	jr finish
+    ld c,1              ; 1 = repeat toggle on 4 and 13
+    cp 25
+    jp nz,cloop
+    jr finish
 
 crep:
-	bit 0,c
-	jp z,cloop
-	dec b
-	dec c					; -> 0 = don't repeat next time
-	exx
-	dec bc
-	dec bc
-	dec bc
-	exx
-	jp cloop
-	
+    bit 0,c
+    jp z,cloop
+    dec b
+    dec c               ; -> 0 = don't repeat next time
+    exx
+    dec bc
+    dec bc
+    dec bc
+    exx
+    jp cloop
+
 finish:
-;	call dispall
-	ld hl,ZVAR
-	ld e,(hl)
-	inc hl
-	ld d,(hl)
-	inc hl
-	ld l,(hl)	    		; rare usage!
-	ld a,128				; double first (bias=127)
+;   call dispall
+    ld hl,ZVAR
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    inc hl
+    ld l,(hl)           ; rare usage!
+    ld a,128            ; double first (bias=127)
 norm:
-	bit 7,l
-	jr nz,norm1
-	sla e
-	rl d
-	rl l
-	dec a
-	jr norm1
-	
+    bit 7,l
+    jr nz,norm1
+    sla e
+    rl d
+    rl l
+    dec a
+
 norm1:
-	rl l
-	srl a
-	rr l
-	ld h,a
-	ret
+    rl l
+    srl a
+    rr l
+    ld h,a
+    ret
 
-
-; ----------------------------------------------------
-dispall:
-
-; display X,Y,Z in hex (LSB first)
-	ld hl,(XVAR)
-	call print16
-	ld hl,(XVAR+2)
-	call print16
-	ld a,10
-	out (254),a
-	ld hl,(YVAR)
-	call print16
-	ld hl,(YVAR+2)
-	call print16
-	ld a,10
-	out (254),a
-	ld hl,(ZVAR)
-	call print16
-	ld hl,(ZVAR+2)
-	call print16
-	ld a,10
-	out (254),a
-	ret
-
-; ----------------------------------------------------
-print16:
-	ld a,l
-	call print8
-	ld a,h
-
-print8:
-	ld b,a
-	rra
-	rra
-	rra
-	rra
-	and $0F
-	call print4
-	ld a,b
-	and 00Fh
-print4:
-	add a,'0'
-	cp '9'+1
-	jr c,print41
-	add a,7
-print41:
-	out (254),a
-	ret
-		
 
 ; ----------------------------------------------------
 ; shift signed DE,DE' right by B places
 ;
 shiftDE:
-	ld a,b				; save shift count
+    ld a,b              ; save shift count
 shiftDElp:
-	sra d
-	rr e
-	exx
-	rr d
-	rr e
-	exx
-	djnz shiftDElp
-	ld b,a				; restore shift count
-	ret
+    sra d
+    rr e
+    exx
+    rr d
+    rr e
+    exx
+    djnz shiftDElp
+    ld b,a              ; restore shift count
+    ret
 
 ; add 32-bit values if carry set; otherwise, subtract.
 addORsub32:
-	jr nc,sub32
+    jr nc,sub32
 
 ; return (HL,HL') = (HL,HL') + (DE,DE')
 ; bit 7 of H (D) holds most significant bit.
 add32:
-	exx
-	add hl,de
-	exx
-	adc hl,de
-	ret
+    exx
+    add hl,de
+    exx
+    adc hl,de
+    ret
 
 ; return (HL,HL') = (HL,HL') - (DE,DE')
 ; bit 7 of H (D) holds most significant bit.
 sub32:
-	exx
-	or a
-	sbc hl,de
-	exx
-	sbc hl,de
-	ret
+    exx
+    or a
+    sbc hl,de
+    exx
+    sbc hl,de
+    ret
 
 
 ; ----------------------------------------------------
@@ -284,27 +232,77 @@ sub32:
 ; 24-bits stored, LSB first (for easy access in Z calculation)
 ;
 atanhtab:
-	defb	$A9,$4F,$46
-	defb	$5D,$B1,$20
-	defb	$89,$15,$10
-	defb	$AC,$02,$08
-	defb	$55,$00,$04
-	defb	$0A,$00,$02
-	defb	$01,$00,$01
-	defb	$00,$80,$00
-	defb	$00,$40,$00
-	defb	$00,$20,$00
-	defb	$00,$10,$00
-	defb	$00,$08,$00
-	defb	$00,$04,$00
-	defb	$00,$02,$00
-	defb	$00,$01,$00
-	defb	$80,$00,$00
-	defb	$40,$00,$00
-	defb	$20,$00,$00
-	defb	$10,$00,$00
-	defb	$08,$00,$00
-	defb	$04,$00,$00
-	defb	$02,$00,$00
-	defb	$01,$00,$00
-	defb	$00,$00,$00
+    defb    $A9,$4F,$46
+    defb    $5D,$B1,$20
+    defb    $89,$15,$10
+    defb    $AC,$02,$08
+    defb    $55,$00,$04
+    defb    $0A,$00,$02
+    defb    $01,$00,$01
+    defb    $00,$80,$00
+    defb    $00,$40,$00
+    defb    $00,$20,$00
+    defb    $00,$10,$00
+    defb    $00,$08,$00
+    defb    $00,$04,$00
+    defb    $00,$02,$00
+    defb    $00,$01,$00
+    defb    $80,$00,$00
+    defb    $40,$00,$00
+    defb    $20,$00,$00
+    defb    $10,$00,$00
+    defb    $08,$00,$00
+    defb    $04,$00,$00
+    defb    $02,$00,$00
+    defb    $01,$00,$00
+    defb    $00,$00,$00
+
+
+; ----------------------------------------------------
+dispall:
+
+; display X,Y,Z in hex (LSB first)
+    ld hl,(XVAR)
+    call print16
+    ld hl,(XVAR+2)
+    call print16
+    ld a,10
+    out (254),a
+    ld hl,(YVAR)
+    call print16
+    ld hl,(YVAR+2)
+    call print16
+    ld a,10
+    out (254),a
+    ld hl,(ZVAR)
+    call print16
+    ld hl,(ZVAR+2)
+    call print16
+    ld a,10
+    out (254),a
+    ret
+
+; ----------------------------------------------------
+print16:
+    ld a,l
+    call print8
+    ld a,h
+
+print8:
+    ld b,a
+    rra
+    rra
+    rra
+    rra
+    and $0F
+    call print4
+    ld a,b
+    and 00Fh
+print4:
+    add a,'0'
+    cp '9'+1
+    jr c,print41
+    add a,7
+print41:
+    out (254),a
+    ret
