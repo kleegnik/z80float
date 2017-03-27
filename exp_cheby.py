@@ -46,13 +46,13 @@ ncoeff = len(coeff)
 
 x = -1.0
 while x<=1.0:
-	e = coeff[ncoeff-1]
-	for n in range(ncoeff-2,-1,-1):
-		e = e*x+coeff[n]
+  e = coeff[ncoeff-1]
+  for n in range(ncoeff-2,-1,-1):
+    e = e*x+coeff[n]
 
-	ex = exp(x)
-	print x,e,ex,e-ex
-	x += 0.1
+  ex = exp(x)
+  print x,e,ex,e-ex
+  x += 0.1
 
 
 """
