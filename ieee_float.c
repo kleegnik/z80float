@@ -1,15 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
 
-/*
-typedef struct {
-	unsigned int negative:1;
-	unsigned int exponent:8;
-	unsigned int fraction:23;
-} ieee_float;
-*/
- 
+
 int main(int argc, char **argv)
 {
 	float f;
@@ -21,19 +13,22 @@ int main(int argc, char **argv)
 
 	/* Assuming sizeof(float) == sizeof(unsigned int) */
 	u = (unsigned int *) &f;
-	printf("%X\n", *u);
+	printf("%.8X\n", *u);
 
 	sign = ((*u)>>31) & 1;
 	exponent = ((*u)>>23) & 0xFF;
 	fraction = ((*u) & 0x007FFFFF) | 0x00800000;
 
-/*	printf("float    = %.9f\n", f);
-	printf("sign     = %d\n", sign); */
-	printf("fraction = 0x%X (%d)\n", fraction,fraction);
-	printf("exponent = %d (%d)\n", exponent-127,exponent);
-/*	printf("bias     = 127\n"); */
-
-	/* printf("value    = (-1)^sign * (radix)^(exponent - bias) * (1).fraction\n"); */
+    printf("sign = %d\n", sign);
+    if (exponent==0 && fraction==0x800000) {
+        /* +/- zero */
+        printf("fraction = 0x000000 (0)\n");
+        printf("exponent = 0 (0)\n");
+    }
+    else {
+        printf("fraction = 0x%X (%d)\n", fraction,fraction);
+        printf("exponent = %d (%d)\n", exponent-127,exponent);
+    }
 
 	return 0;
 }
