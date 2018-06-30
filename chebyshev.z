@@ -1,25 +1,25 @@
 ; function approximations by Chebyshev polynomials
 ; (evaluated by Horner's method)
 
-    org 0
+    org  0
 
 start:
     di
-    ld sp,2048
+    ld   sp,2048
 
 ; HLDE contains float (x) on entry.
 ; C:
 ;  0 -> exp
 ;  1 -> sin
 
-    ld a,c
-    or a
-    jr z,chexp
-    cp 1
-    jp z,chsin
-    ld hl,0
-    ld d,h
-    ld e,l          ; invalid
+    ld   a,c
+    or   a
+    jr   z,chexp
+    cp   1
+    jp   z,chsin
+    ld   hl,0
+    ld   d,h
+    ld   e,l          ; invalid
     halt
 
 
@@ -36,40 +36,40 @@ start:
 ;       e = e*x+coeff[n]
 
 chexp:
-    ld (xvar),hl
-    ld (xvar+2),de      ; save x
-    ld hl,coeff6+3      ; last byte of penultimate coefficient
-    ld (coeffptr),hl
-    ld hl,$3956
-    ld de,$A4BD         ; e = final coefficient = 0.00020470
+    ld   (xvar),hl
+    ld   (xvar+2),de          ; save x
+    ld   hl,coeff6+3          ; last byte of penultimate coefficient
+    ld   (coeffptr),hl
+    ld   hl,$3956
+    ld   de,$A4BD             ; e = final coefficient = 0.00020470
 
-    ld b,7
+    ld   b,7
 chexp1:
     push bc
     exx
-    ld hl,(xvar)
-    ld de,(xvar+2)
+    ld   hl,(xvar)
+    ld   de,(xvar+2)
     exx
-    call flmult         ; HLDE = e*x
+    call flmult               ; HLDE = e*x
     exx
-    ld bc,(coeffptr)
-    ld a,(bc)
-    ld e,a
-    dec bc
-    ld a,(bc)
-    ld d,a
-    dec bc
-    ld a,(bc)
-    ld l,a
-    dec bc
-    ld a,(bc)
-    ld h,a
-    dec bc              ; HLDE = coefficient
-    ld (coeffptr),bc
+    ld   bc,(coeffptr)
+    ld   a,(bc)
+    ld   e,a
+    dec  bc
+    ld   a,(bc)
+    ld   d,a
+    dec  bc
+    ld   a,(bc)
+    ld   l,a
+    dec  bc
+    ld   a,(bc)
+    ld   h,a
+    dec  bc                   ; HLDE = coefficient
+    ld   (coeffptr),bc
     exx
-    call fladd          ; e = e*x + coeff
+    call fladd                ; e = e*x + coeff
 
-    pop bc
+    pop  bc
     djnz chexp1
 
     halt
@@ -106,61 +106,61 @@ chsin:
 ; HLDE contains float (x) on entry: 0<x<1.57.. (at least pi/2)
 
     push hl
-    push de         ; save x
+    push de                   ; save x
     push hl
     push de
     exx
-    pop de
-    pop hl
+    pop  de
+    pop  hl
     exx
-    call flmult     ; HLDE = x*x
+    call flmult               ; HLDE = x*x
     push hl
     push de
     push hl
-    push de         ; save x*x twice
+    push de                   ; save x*x twice
 
     exx
-    ld hl,$B94C
-    ld de,$A1F0     ; -0.000195152832
-    exx
-
-    call flmult
-
-    exx
-    ld hl,$3C08
-    ld de,$839D     ; 0.00833216076
-    exx
-
-    call fladd
-
-    exx
-    pop de
-    pop hl
+    ld   hl,$B94C
+    ld   de,$A1F0             ; -0.000195152832
     exx
 
     call flmult
 
     exx
-    ld hl,$BE2A
-    ld de,$AAA3     ; -0.166666546
+    ld   hl,$3C08
+    ld   de,$839D             ; 0.00833216076
+    exx
+
+    call fladd
+
+    exx
+    pop  de
+    pop  hl
+    exx
+
+    call flmult
+
+    exx
+    ld   hl,$BE2A
+    ld   de,$AAA3             ; -0.166666546
     exx
 
     call fladd
     exx
-    pop de
-    pop hl
+    pop  de
+    pop  hl
     exx
     call flmult
 
     exx
-    ld hl,$3F80
-    ld de,$0000     ; 1.0
+    ld   hl,$3F80
+    ld   de,$0000             ; 1.0
     exx
 
     call fladd
     exx
-    pop de
-    pop hl
+    pop  de
+    pop  hl
     exx
     call flmult
     halt

@@ -1,21 +1,21 @@
 ; Briggs base-e logarithm.
 ; All calculations in 24 bits.
 
-   org 0
+    org  0
 
 start:
     di
-    ld sp,2048
+    ld   sp,2048
 
-    ld a,l
+    ld   a,l
     rla
-    ld a,h
+    ld   a,h
     rla                 ; exponent to A
-    sub 127             ; remove bias
+    sub  127             ; remove bias
     push af
     call logfrac
-    pop af
-    jr nz,savelog
+    pop  af
+    jr   nz,savelog
     halt               ; exponent is zero - finish with log(f) as final result
 
 savelog:
@@ -24,31 +24,31 @@ savelog:
 
 ; convert exponent byte to full float
     push af             ; save sign as carry
-    jr nc,posexp
+    jr   nc,posexp
     neg                 ; take absolute value of exponent byte
 
 posexp:
-    ld h,127+7          ; starting exponent+bias
+    ld   h,127+7          ; starting exponent+bias
 posexp1:
-    add a,a
-    jr c,posexp2
-    dec h
-    jr posexp1
+    add  a,a
+    jr   c,posexp2
+    dec  h
+    jr   posexp1
 posexp2:
-    ld l,a
-    pop af              ; retrieve sign in carry
-    rr h
-    rr l
-    ld de,0             ; converted byte to HLDE
+    ld   l,a
+    pop  af              ; retrieve sign in carry
+    rr   h
+    rr   l
+    ld   de,0             ; converted byte to HLDE
     exx
-    ld hl,$3F31
-    ld de,$7218         ; log(2) = 0.6931.. to H'L'D'E'
+    ld   hl,$3F31
+    ld   de,$7218         ; log(2) = 0.6931.. to H'L'D'E'
     exx
 
     call flmult         ; exponent * log(2)
     exx
-    pop de
-    pop hl              ; retrieve log(f)
+    pop  de
+    pop  hl              ; retrieve log(f)
     exx
     call fladd          ; log(f) + exponent*log(2) = log(x)
     halt
@@ -57,52 +57,52 @@ posexp2:
 ; -----------------------------------------------------------------------
 ; HLDE contains fraction (f) on entry: 1<=f<2
 logfrac:
-    ld a,l
-    or 80h              ; set true bit 23
+    ld   a,l
+    or   80h              ; set true bit 23
     push de
     exx
-    ld b,a
-    pop hl              ; f: B'H'L'
-    srl a
-    ld c,a
-    ld d,h
-    ld e,l
-    rr d
-    rr e                ; z: C'D'E' (= f>>1)
+    ld   b,a
+    pop  hl              ; f: B'H'L'
+    srl  a
+    ld   c,a
+    ld   d,h
+    ld   e,l
+    rr   d
+    rr   e                ; z: C'D'E' (= f>>1)
     exx
-    ld e,0
-    ld d,e
-    ld c,e              ; y: CDE (=0)
-    ld hl,ltable
+    ld   e,0
+    ld   d,e
+    ld   c,e              ; y: CDE (=0)
+    ld   hl,ltable
 
-    ld b,1              ; k: B (=1)
+    ld   b,1              ; k: B (=1)
 lp: exx
-    ld a,l
-    or h
-    jr nz,lp1
-    ld a,b
-    cp $80              ; compare f with 1 (scaled: $800000)
-    jr nz,lp1
+    ld   a,l
+    or   h
+    jr   nz,lp1
+    ld   a,b
+    cp   $80              ; compare f with 1 (scaled: $800000)
+    jr   nz,lp1
 
 ; -----------------------------------------------------------------------
 ; f=1: return final value in HLDE as normalised IEEE float
     exx                 ; back to main register set
-    ld a,127            ; exponent = 0+bias
+    ld   a,127            ; exponent = 0+bias
 lpnorm:
-    bit 7,c
-    jr nz,lpnorm1
-    sla e
-    rl d
-    rl c
-    dec a
-    jr lpnorm
+    bit  7,c
+    jr   nz,lpnorm1
+    sla  e
+    rl   d
+    rl   c
+    dec  a
+    jr   lpnorm
 
 lpnorm1:
-    ld l,c
-    rl l
-    srl a
-    ld h,a
-    rr l
+    ld   l,c
+    rl   l
+    srl  a
+    ld   h,a
+    rr   l
 
     ret
 
@@ -111,60 +111,60 @@ lpnorm1:
 lp1:
     push bc
     push hl             ; save f
-    or a
-    sbc hl,de
-    ld a,b
-    sbc a,c
-    ld b,a              ; f -= z
-    cp $80              ; check if (f-z) >= 2^23 ($800000)
-    jr c,lp3
-    pop af
-    pop af              ; keep f -= z
+    or   a
+    sbc  hl,de
+    ld   a,b
+    sbc  a,c
+    ld   b,a              ; f -= z
+    cp   $80              ; check if (f-z) >= 2^23 ($800000)
+    jr   c,lp3
+    pop  af
+    pop  af              ; keep f -= z
     exx                 ; get B from main register set
-    ld a,b
+    ld   a,b
     exx
-    ld c,b
-    ld d,h
-    ld e,l              ; copy f to z
+    ld   c,b
+    ld   d,h
+    ld   e,l              ; copy f to z
 lp2:
-    srl c
-    rr d
-    rr e
-    dec a
-    jr nz,lp2           ; z = f>>k
+    srl  c
+    rr   d
+    rr   e
+    dec  a
+    jr   nz,lp2           ; z = f>>k
 
 ; y += ltable[k-1]
     exx                 ; back to main register set
-    ld a,(hl)
-    add a,e
-    ld e,a
-    inc hl
-    ld a,(hl)
-    adc a,d
-    ld d,a
-    inc hl
-    ld a,(hl)
-    adc a,c
-    ld c,a
-    dec hl
-    dec hl              ; reset table pointer
-    jr lp
+    ld   a,(hl)
+    add  a,e
+    ld   e,a
+    inc  hl
+    ld   a,(hl)
+    adc  a,d
+    ld   d,a
+    inc  hl
+    ld   a,(hl)
+    adc  a,c
+    ld   c,a
+    dec  hl
+    dec  hl              ; reset table pointer
+    jr   lp
 
 ; (f-z) < $800000 (scaled 1)
 lp3:
 ; in alternate register set here
-    pop hl
-    pop bc              ; recover f
-    srl c
-    rr d
-    rr e                ; z >>= 1
+    pop  hl
+    pop  bc              ; recover f
+    srl  c
+    rr   d
+    rr   e                ; z >>= 1
     exx                 ; back to main register set
-    inc hl
-    inc hl
-    inc hl              ; move to next table entry
-    inc b               ; k += 1
+    inc  hl
+    inc  hl
+    inc  hl              ; move to next table entry
+    inc  b               ; k += 1
 
-    jr lp
+    jr   lp
 
 
 ; -----------------------------------------------------------------------

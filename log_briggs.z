@@ -3,138 +3,138 @@
 ; with 24 bits of IEEE float mantissa (with implied 1 at bit 23).
 ; so 1.0 := 0x 0080 0000
 
-   org 0
+    org  0
 
 start:
-   di
-   ld sp,2048
+    di
+    ld   sp,2048
 
 ; HLDE contains float (x) on entry: 1<x<2 (H = exponent = 0)
-    set 7,l             ; set true bit 23
-    ld h,0
+    set  7,l             ; set true bit 23
+    ld   h,0
     push de
-    ld d,h
-    ld e,l
-    srl e               ; D is 0
+    ld   d,h
+    ld   e,l
+    srl  e               ; D is 0
     exx
-    pop hl              ; x -> HLH'L'
-    ld d,h
-    ld e,l
-    rr d
-    rr e                ; z = x>>1  -> DED'E'
-    ld bc,ltable
+    pop  hl              ; x -> HLH'L'
+    ld   d,h
+    ld   e,l
+    rr   d
+    rr   e                ; z = x>>1  -> DED'E'
+    ld   bc,ltable
     exx
-    ld b,1              ; k = 1  -> B
+    ld   b,1              ; k = 1  -> B
 lp:
 ;   call disphexall
     exx
-    ld a,h
-    or l
+    ld   a,h
+    or   l
     exx
-    jr nz,lp1
-    or h
-    jr nz,lp1
-    ld a,l
-    cp $80              ; compare x with 1 (scaled)
-    jr nz,lp1
+    jr   nz,lp1
+    or   h
+    jr   nz,lp1
+    ld   a,l
+    cp   $80              ; compare x with 1 (scaled)
+    jr   nz,lp1
 
 ; -----------------------------------------------------------------------
 ; x=1 : get final value from yvar, normalise and return as IEEE float
-    ld hl,yvar
-    ld e,(hl)
-    inc hl
-    ld d,(hl)
-    inc hl
-    ld l,(hl)
-    ld a,127            ; exponent = 0+bias
+    ld   hl,yvar
+    ld   e,(hl)
+    inc  hl
+    ld   d,(hl)
+    inc  hl
+    ld   l,(hl)
+    ld   a,127            ; exponent = 0+bias
 lpnorm:
-    bit 7,l
-    jr nz,lpnorm1
-    sla e
-    rl d
-    rl l
-    dec a
-    jr lpnorm
+    bit  7,l
+    jr   nz,lpnorm1
+    sla  e
+    rl   d
+    rl   l
+    dec  a
+    jr   lpnorm
 lpnorm1:
-    rl l
-    srl a
-    ld h,a
-    rr l
+    rl   l
+    srl  a
+    ld   h,a
+    rr   l
     halt                ; finished, with log(x) in HLDE
 ; -----------------------------------------------------------------------
 
 lp1:
     exx
     push hl
-    or a
-    sbc hl,de
+    or   a
+    sbc  hl,de
     exx
     push hl             ; save HLH'L'
-    sbc hl,de           ; x -= z
+    sbc  hl,de           ; x -= z
                         ; x is always >z (HLH'L'>DED'E'), so no sign bit set
-    ld a,l              ; check if (x-z) >= scale, i.e. 2^23
+    ld   a,l              ; check if (x-z) >= scale, i.e. 2^23
     rla
-    ld a,h
+    ld   a,h
     rla
-    cp 1                ; check H (bottom 7 bits)L(top 1 bit) >= 1
-    jr c,lp3
-    pop af
-    pop af              ; keep x -= z
-    ld d,h
-    ld e,l
+    cp   1                ; check H (bottom 7 bits)L(top 1 bit) >= 1
+    jr   c,lp3
+    pop  af
+    pop  af              ; keep x -= z
+    ld   d,h
+    ld   e,l
     exx
-    ld d,h
-    ld e,l
+    ld   d,h
+    ld   e,l
     exx
-    ld a,b
+    ld   a,b
 lp2:
-    srl d
-    rr e
+    srl  d
+    rr   e
     exx
-    rr d
-    rr e
+    rr   d
+    rr   e
     exx
     djnz lp2            ; z = x>>k
-    ld b,a
+    ld   b,a
 
 ; y += ltable[k-1]
     exx
     push hl
-    ld hl,yvar
-    ld a,(bc)
-    add a,(hl)
-    ld (hl),a
-    inc hl
-    inc bc
-    ld a,(bc)
-    adc a,(hl)
-    ld (hl),a
-    inc hl
-    inc bc
-    ld a,(bc)
-    adc a,(hl)
-    ld (hl),a
-    pop hl
-    dec bc
-    dec bc
+    ld   hl,yvar
+    ld   a,(bc)
+    add  a,(hl)
+    ld   (hl),a
+    inc  hl
+    inc  bc
+    ld   a,(bc)
+    adc  a,(hl)
+    ld   (hl),a
+    inc  hl
+    inc  bc
+    ld   a,(bc)
+    adc  a,(hl)
+    ld   (hl),a
+    pop  hl
+    dec  bc
+    dec  bc
     exx
-    jr lp
+    jr   lp
 
 ; (x-z) < scale
 lp3:
-    srl d
-    rr e
-    pop hl
+    srl  d
+    rr   e
+    pop  hl
     exx
-    pop hl              ; recover x
-    rr d
-    rr e                ; z >>= 1
-    inc bc
-    inc bc
-    inc bc              ; move to next table entry
+    pop  hl              ; recover x
+    rr   d
+    rr   e                ; z >>= 1
+    inc  bc
+    inc  bc
+    inc  bc              ; move to next table entry
     exx
-    inc b               ; k += 1
-    jp lp
+    inc  b               ; k += 1
+    jp   lp
 
 
 ;while x!=scale:
@@ -157,38 +157,38 @@ ltable:
 ;'0x8040', '0x4010', '0x2004', '0x1001', '0x800', '0x400', '0x200', '0x100', '0x80',
 ;'0x40', '0x20', '0x10', '0x8', '0x4', '0x2', '0x1']
 ;
-defb $0B,$B9,$58
-defb $C4,$D2,$24
-defb $8E,$17,$11
-defb $CC,$42,$08
-defb $57,$10,$04
-defb $0A,$04,$02
-defb $01,$01,$01
-defb $40,$80,$00
-defb $10,$40,$00
-defb $04,$20,$00
-defb $01,$10,$00
-defb $00,$08,$00
-defb $00,$04,$00
-defb $00,$02,$00
-defb $00,$01,$00
-defb $80,$00,$00
-defb $40,$00,$00
-defb $20,$00,$00
-defb $10,$00,$00
-defb $08,$00,$00
-defb $04,$00,$00
-defb $02,$00,$00
-defb $01,$00,$00
+    defb $0B,$B9,$58
+    defb $C4,$D2,$24
+    defb $8E,$17,$11
+    defb $CC,$42,$08
+    defb $57,$10,$04
+    defb $0A,$04,$02
+    defb $01,$01,$01
+    defb $40,$80,$00
+    defb $10,$40,$00
+    defb $04,$20,$00
+    defb $01,$10,$00
+    defb $00,$08,$00
+    defb $00,$04,$00
+    defb $00,$02,$00
+    defb $00,$01,$00
+    defb $80,$00,$00
+    defb $40,$00,$00
+    defb $20,$00,$00
+    defb $10,$00,$00
+    defb $08,$00,$00
+    defb $04,$00,$00
+    defb $02,$00,$00
+    defb $01,$00,$00
 
 
 disphexall:
 ; display K,X,Y,Z in hex (32 bits; MSB first)
     push bc
-    ld a,b
+    ld   a,b
     call print8     ; print K
-    ld a,' '
-    out (254),a
+    ld   a,' '
+    out  (254),a
     exx
     push bc
     exx
@@ -197,67 +197,67 @@ disphexall:
     exx
     call print16
     exx             ; print X
-    ld a,' '
-    out (254),a
+    ld   a,' '
+    out  (254),a
 
-    ld a,'0'
-    out (254),a
-    out (254),a
+    ld   a,'0'
+    out  (254),a
+    out  (254),a
     push hl
-    ld hl,yvar+2
-    ld a,(hl)
+    ld   hl,yvar+2
+    ld   a,(hl)
     call print8
-    dec hl
-    ld a,(hl)
+    dec  hl
+    ld   a,(hl)
     call print8
-    dec hl
-    ld a,(hl)
+    dec  hl
+    ld   a,(hl)
     call print8     ; print Y
-    pop hl
-    ld a,' '
-    out (254),a
+    pop  hl
+    ld   a,' '
+    out  (254),a
 
-    ex de,hl
+    ex   de,hl
     call print16
-    ex de,hl
+    ex   de,hl
     exx
-    ex de,hl
+    ex   de,hl
     call print16
-    ex de,hl
+    ex   de,hl
     exx             ; print Z
-    ld a,' '
-    out (254),a
+    ld   a,' '
+    out  (254),a
 
     exx
-    pop bc
+    pop  bc
     exx
-    pop bc
-    ld a,10
-    out (254),a
+    pop  bc
+    ld   a,10
+    out  (254),a
     ret
 
 ; ----------------------------------------------------
 print16:
-    ld a,h
+    ld   a,h
     call print8
-    ld a,l
+    ld   a,l
 print8:
-    ld b,a
+    ld   b,a
     rra
     rra
     rra
     rra
-    and $0F
+    and  $0F
     call print4
-    ld a,b
-    and $0F
+    ld   a,b
+    and  $0F
 print4:
-    add a,'0'
-    cp '9'+1
-    jr c,print41
-    add a,7
+    add  a,'0'
+    cp   '9'+1
+    jr   c,print41
+    add  a,7
 print41:
-    out (254),a
+    out  (254),a
     ret
 
 

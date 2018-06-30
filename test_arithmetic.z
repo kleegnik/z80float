@@ -4,24 +4,24 @@
 ; and the operation code in C.
 ; The result is returned in HLDE
 
-    org 0
+    org  0
 
     di
-    ld sp,2048
+    ld   sp,2048
 
 start:
-    ld a,c
-    ld bc,finish
+    ld   a,c
+    ld   bc,finish
     push bc
-    ld (fladdsubflag),a     ; 0/1/2/3 = addition/subtraction/multiplication/division
-    cp 2
-    jr c,fladdsub
-    jp z,flmult
-    cp 3
-    jp z,fldiv
-    cp 4
-    jp z,fl24div
-    pop bc
+    ld   (fladdsubflag),a     ; 0/1/2/3 = addition/subtraction/multiplication/division
+    cp   2
+    jr   c,fladdsub
+    jp   z,flmult
+    cp   3
+    jp   z,fldiv
+    cp   4
+    jp   z,fl24div
+    pop  bc
 finish:
     halt
 
