@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 from sys import argv,exit
 from struct import pack,unpack
@@ -22,34 +22,28 @@ $ = sign changed when operands are exchanged
 
 # --------------------------------------------------------------
 def printbin(l):
-  for byte in range(4):
-    bytestr = ''
-    for bit in range(8):
-      bytestr += str((l & 0x80000000)>>31)
-      l <<= 1
-    print bytestr,
-
-  print
+    b = format(l, '032b')
+    print(b[:8]+' '+b[8:16]+' '+b[16:24]+' '+b[24:])
 
 
 # --------------------------------------------------------------
 if len(argv)!=4 or argv[1] not in ('-','+'):
-  print 'Usage: %s <+|-> <augend> <addend>' % argv[0]
-  exit(0)
+    print('Usage: {0} <+|-> <augend> <addend>'.format(argv[0]))
+    exit(0)
 op = argv[1]
 
 # -- convert floats to unsigned long int of IEEE representation --
 n1f = float(argv[2])
 p = pack('f',n1f)
-n1 = unpack('L',p)[0]
+n1 = unpack('I',p)[0]
 n2f = float(argv[3])
 p = pack('f',n2f)
-n2 = unpack('L',p)[0]
+n2 = unpack('I',p)[0]
 #print hex(n1),hex(n2)
 if op=='+':
-  r = n1f+n2f
+    r = n1f+n2f
 else:
-  r = n1f-n2f
+    r = n1f-n2f
 
 # -- unpack into sign,exponent,fraction (setting implied bit at 23) --
 s1 = n1>>31
@@ -61,8 +55,8 @@ f2 = (n2 & 0x007FFFFF) | 0x00800000
 #printbin(f1)
 #printbin(f2)
 
-print s1,e1,hex(f1)
-print s2,e2,hex(f2)
+print(s1,e1,hex(f1))
+print(s2,e2,hex(f2))
 
 # initialise sign of result
 st = s1   # same as sign of first operand
@@ -70,30 +64,30 @@ st = s1   # same as sign of first operand
 # -- compare exponents, swap if needed, align other fraction --
 d = e1-e2
 if d<0:
-  print 'swap operands'
-  tmp = (s1,e1,f1)
-  (s1,e1,f1) = (s2,e2,f2)
-  (s2,e2,f2) = tmp
-  tmp = n1f
-  n1f = n2f
-  n2f = tmp
-  d = -d
-  if (s1!=s2) ^ (op=='-'):
-    # swap sign if:
-    # for addition - signs are different
-    # for subtraction - signs are the same
-    st = 1-st
-    print 'swap sign as operands are reversed'
+    print('swap operands')
+    tmp = (s1,e1,f1)
+    (s1,e1,f1) = (s2,e2,f2)
+    (s2,e2,f2) = tmp
+    tmp = n1f
+    n1f = n2f
+    n2f = tmp
+    d = -d
+    if (s1!=s2) ^ (op=='-'):
+        # swap sign if:
+        # for addition - signs are different
+        # for subtraction - signs are the same
+        st = 1-st
+        print('swap sign as operands are reversed')
 
 if d>23:
-  # exponent difference is too large; nothing to add
-  print 'large exp diff = %d' % d
-  print 'result = %f' % n1f
-  exit(0)
+    # exponent difference is too large; nothing to add
+    print('large exp diff = {0}'.format(d))
+    print('result = {0}'.format(n1f))
+    exit(0)
 
 if d!=0:
-  # shift addend right until exponents match
-  f2 >>= d
+    # shift addend right until exponents match
+    f2 >>= d
 
 
 # -- add fractions --
@@ -122,59 +116,60 @@ if d!=0:
 # or 1 1xxxxxxx
 
 if s1!=s2:
-  # signs are different: change add/sub operation
-  if op=='+':
-    op = '-'
-  else:
-    op = '+'
-if op=='+':
-  a = f1+f2
-else:
-  a = f1-f2
+    # signs are different: change add/sub operation
+    if op=='+':
+        op = '-'
+    else:
+        op = '+'
 
-print ' ',
+if op=='+':
+    a = f1+f2
+else:
+    a = f1-f2
+
+print(' ',)
 printbin(f1)
-print op,
+print(op,)
 printbin(f2)
-print '=',
+print('=',)
 printbin(a)
 
 if (a&0x01000000)!=0:
-  # bit 24 set
-  if op=='+':
-    a >>= 1
-    e1 += 1
-    print '>>1: ',
-  else:
-    # negate fraction
-    a = (-a) & 0x007FFFFF
-    st = 1-st     # swap sign
-    print 'swap sign as negative result after subtracting'
+    # bit 24 set
+    if op=='+':
+        a >>= 1
+        e1 += 1
+        print('>>1: ',)
+    else:
+        # negate fraction
+        a = (-a) & 0x007FFFFF
+        st = 1-st     # swap sign
+        print('swap sign as negative result after subtracting')
 
-  # otherwise bit 24 clear - no overflow or change of sign.
+    # otherwise bit 24 clear - no overflow or change of sign.
 
 # for subtraction, normalise
 if op=='-':
-  if a==0:
-    # zero result
-    e1 = 0
-    st = 0
-  else:
-    while (a&0x00800000)==0:
-      a <<= 1
-      e1 -=1
+    if a==0:
+        # zero result
+        e1 = 0
+        st = 0
+    else:
+        while (a&0x00800000)==0:
+            a <<= 1
+            e1 -=1
 
 printbin(a)
-print
+print()
 
 # -- pack everything back --
 a &= 0x007FFFFF
 s = (st<<31) | (e1<<23) | a
-print
-print s1,e1
-print hex(s)
+print()
+print(s1,e1)
+print(hex(s))
 printbin(s)
 
-p = pack('L',s)
+p = pack('I',s)
 fl = unpack('f',p)[0]
-print '=', fl, '(%.7f)' % r   # without formatting or rounding
+print('= {0} {1:<7f}'.format(fl, r))   # without formatting or rounding
