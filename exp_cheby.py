@@ -1,8 +1,7 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 
 from math import exp
 from matplotlib import pyplot as plt
-from sys import argv,exit
 
 # Chebyshev expansion as polynomial -> near Maclaurin series
 
@@ -35,31 +34,31 @@ coeff = [0.999999801337,
 
 # for single IEEE float
 coeff = [0.99999980,
-0.99999990,
-0.50000635,
-0.16666799,
-0.04163501,
-0.00832860,
-0.00143927,
-0.00020470]
+         0.99999990,
+         0.50000635,
+         0.16666799,
+         0.04163501,
+         0.00832860,
+         0.00143927,
+         0.00020470]
 
 ncoeff = len(coeff)
 
 xdata = []
 ydata = []
 x = -1.0
-while x<=1.0:
+while x <= 1.0:
     e = coeff[ncoeff-1]
-    for n in range(ncoeff-2,-1,-1):
+    for n in range(ncoeff-2, -1, -1):
         e = e*x+coeff[n]
 
     ex = exp(x)
-    print x,e,ex,e-ex
+    print(x, e, ex, e-ex)
     x += 0.1
     xdata.append(x)
     ydata.append(ex-e)
 
-plt.plot(xdata,ydata)
+plt.plot(xdata, ydata)
 plt.show()
 plt.close()
 
