@@ -3,26 +3,36 @@
 ; Float operands are passed in HLDE and H'L'D'E'
 ; and the operation code in C.
 ; The result is returned in HLDE
+;  0 = addition
+;  1 = subtraction
+;  2 = multiplication
+;  3 = 32-bit division
+;  4 = 24-bit division
 
-    org  0
+    org   0
 
     di
-    ld   sp,2048
+    ld    sp,8192
 
 start:
-    ld   a,c
-    ld   bc,finish
-    push bc
-    ld   (fladdsubflag),a     ; 0/1/2/3 = addition/subtraction/multiplication/division
-    cp   2
-    jr   c,fladdsub
-    jp   z,flmult
-    cp   3
-    jp   z,fldiv
-    cp   4
-    jp   z,fl24div
-    pop  bc
+    ld    a,c
+    ld    bc,finish
+    push  bc
+    ld    (fladdsubflag),a
+    or    a
+    jp    z,fladd
+    cp    1
+    jp    z,flsub
+    cp    2
+    jp    z,flmult
+    cp    3
+    jp    z,fldiv
+    cp    4
+    jp    z,fl24div
+    pop   bc
 finish:
     halt
 
+
+; -------------------------------------------------------------
 include arithmetic.z
